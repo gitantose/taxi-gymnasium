@@ -22,7 +22,7 @@ class QNetwork(nn.Module):
         return self.net(x)
 
 def train_dqn (
-    episodes= config.DQN_EPISODES,
+    episodes= None,
     gamma= config.DQN_GAMMA, # discount factor
     epsilon= config.DQN_EPSILON_START, # initial exploration
     epsilon_min= config.DQN_EPSILON_MIN, # min exploration
@@ -30,7 +30,10 @@ def train_dqn (
     lr= config.DQN_LR,  # learning rate for Adam optimizer
     batch_size= config.DQN_BATCH_SIZE,
     memory_size= config.DQN_MEMORY_SIZE
-):
+):  
+    if episodes is None:
+        episodes = config.DQN_EPISODES
+        
     env = gym.make("Taxi-v3")
 
     # Discrete state space → we encode each state as a one-hot vector

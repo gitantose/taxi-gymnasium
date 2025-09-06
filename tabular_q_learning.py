@@ -4,13 +4,15 @@ from tqdm import trange
 import config
 
 def train_q_learning(
-    episodes= config.EPISODES,
+    episodes= None,
     alpha= config.ALPHA,        # learning rate (step size for Q-value updates)
     gamma= config.GAMMA,       # discount factor (importance of future rewards)
     epsilon= config.EPSILON_START,      # exploration rate (ε-greedy policy)
     epsilon_decay= config.EPSILON_DECAY, # Multiplicative decay for epsilon
     epsilon_min= config.EPSILON_MIN # Lower bound for epsilon
-):
+):  
+    if episodes is None:
+        episodes = config.EPISODES
     # --- Initialize Environment ---
     env = gym.make("Taxi-v3")
 

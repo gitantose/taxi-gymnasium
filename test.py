@@ -6,7 +6,7 @@ import gymnasium as gym
 
 from tabular_q_learning import train_q_learning
 from dqn import QNetwork
-from main import evaluate_tabular, evaluate_dqn, demo_tabular, demo_dqn
+from utility import evaluate_tabular, evaluate_dqn, demo_tabular, demo_dqn, plot_learning_curves
 
 
 if __name__ == "__main__":
@@ -17,6 +17,10 @@ if __name__ == "__main__":
                         help="Number of evaluation episodes (default: 100)")
     parser.add_argument("--demo", action="store_true",
                         help="Run a single demo episode after evaluation")
+    parser.add_argument("--plot", action="store_true",
+                        help="Plot the learning curves from saved files")
+    parser.add_argument("--smooth", type=int, default=50,
+                        help="Window mobile average (default: 50)")   
     args = parser.parse_args()
 
     if args.agent == "tab":
@@ -27,6 +31,8 @@ if __name__ == "__main__":
         print(metrics)
         if args.demo:
             demo_tabular(Q)
+        if args.plot:
+            plot_learning_curves(save_dir="results", window=args.smooth)
 
     elif args.agent == "dqn":
         # Load DQN
@@ -42,3 +48,5 @@ if __name__ == "__main__":
         print(metrics)
         if args.demo:
             demo_dqn(model)
+        if args.plot:
+            plot_learning_curves(save_dir="results", window=args.smooth)
