@@ -48,18 +48,18 @@ python main.py --show_plot
 # change the number of episodes
 python main.py --episodes_tab 7000 --episodes_dqn 1500
 
-# cambia la cartella di salvataggio (default: results)
+# change the output dir (default: results)
 python main.py --save_dir my_results
 
-# esegui una demo al termine del training 
-python main.py --demo tab        # oppure: --demo dqn
+# execute a demo at the end of the training
+python main.py --demo tab        # or: --demo dqn
 
 Output:
-- `results/tabular/Q.npy` — Q-table tabulare
-- `results/tabular/rewards.npy` — rewards per episodio (tabulare)
-- `results/dqn/policy_net.pt` — pesi del modello DQN
-- `results/dqn/rewards.npy` — rewards per episodio (DQN)
-- `results/learning_curves_smoothed.png` — grafico (raw + media mobile)
+- `results/tabular/Q.npy` — Q-table 
+- `results/tabular/rewards.npy` — rewards for episode (tabular)
+- `results/dqn/policy_net.pt` — weights of DQN model
+- `results/dqn/rewards.npy` — rewards for episode (DQN)
+- `results/learning_curves_smoothed.png` — graph (raw + media mobile)
 
 ---
 
