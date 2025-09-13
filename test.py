@@ -3,6 +3,7 @@ import argparse
 import numpy as np
 import torch
 import gymnasium as gym
+import config
 
 from tabular_q_learning import train_q_learning
 from dqn import QNetwork
@@ -36,7 +37,7 @@ if __name__ == "__main__":
 
     elif args.agent == "dqn":
         # Load DQN
-        env = gym.make("Taxi-v3")
+        env = gym.make("Taxi-v3",is_rainy = config.IS_RAINING,fickle_passenger=config.FICKLE_PASSENGER)
         state_size = env.observation_space.n
         action_size = env.action_space.n
         model = QNetwork(state_size, action_size)

@@ -3,9 +3,10 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import os
+import config
 
 def evaluate_tabular(Q, episodes=100):
-    env = gym.make("Taxi-v3")
+    env = gym.make("Taxi-v3",is_rainy = config.IS_RAINING,fickle_passenger=config.FICKLE_PASSENGER)
     returns, successes, steps_list = [], 0, []
 
     for _ in range(episodes):
@@ -31,7 +32,7 @@ def evaluate_tabular(Q, episodes=100):
     }
 
 def evaluate_dqn(policy_net, episodes=100):
-    env = gym.make("Taxi-v3")
+    env = gym.make("Taxi-v3",is_rainy = config.IS_RAINING,fickle_passenger=config.FICKLE_PASSENGER)
     state_size = env.observation_space.n
 
     def one_hot(s):
@@ -68,7 +69,7 @@ def evaluate_dqn(policy_net, episodes=100):
     }
 
 def demo_tabular(Q, fps=2):
-    env = gym.make("Taxi-v3", render_mode="rgb_array")
+    env = gym.make("Taxi-v3", render_mode="rgb_array",is_rainy = config.IS_RAINING,fickle_passenger=config.FICKLE_PASSENGER)
     s, _ = env.reset()
     done = False
 
@@ -90,7 +91,7 @@ def demo_tabular(Q, fps=2):
     plt.close(fig)
 
 def demo_dqn(model, fps=2):
-    env = gym.make("Taxi-v3", render_mode="rgb_array")
+    env = gym.make("Taxi-v3", render_mode="rgb_array",is_rainy = config.IS_RAINING,fickle_passenger=config.FICKLE_PASSENGER)
     state_size = env.observation_space.n
 
     def one_hot(s):

@@ -34,7 +34,7 @@ def train_dqn (
     if episodes is None:
         episodes = config.DQN_EPISODES
         
-    env = gym.make("Taxi-v3")
+    env = gym.make("Taxi-v3",is_rainy = config.IS_RAINING,fickle_passenger=config.FICKLE_PASSENGER)
 
     # Discrete state space → we encode each state as a one-hot vector
     state_size = env.observation_space.n
@@ -56,7 +56,7 @@ def train_dqn (
     rewards = []
 
     for ep in trange(episodes, desc="Training DQN"):
-        state, _ = env.reset()
+        state, info = env.reset()
         state = preprocess_state(state)
         done = False
         total_reward = 0
@@ -86,13 +86,13 @@ def train_dqn (
                 batch = random.sample(memory, batch_size)
                 states, actions, rewards_, next_states, dones = zip(*batch)
 
-                states = torch.FloatTensor(states)
+                states = torch.FloatTensor(np.array(states))
                 actions = torch.LongTensor(actions)
                 rewards_ = torch.FloatTensor(rewards_)
-                next_states = torch.FloatTensor(next_states)
+                next_states = torch.FloatTensor(np.array(next_states))
                 dones = torch.FloatTensor(dones)
 
-                # Current Q(s, a) for chosen actions
+                # Compute the current Q(s, a) for chosen actions
                 q_values = policy_net(states).gather(1, actions.unsqueeze(1)).squeeze()
 
                 # Target: r + γ * max_a’ Q(s’, a’), unless terminal
@@ -102,8 +102,11 @@ def train_dqn (
                 # Loss = MSE(Q_predicted, Q_target)
                 loss = criterion(q_values, target.detach())
 
+                # Set all the network parameters to 0
                 optimizer.zero_grad()
+                # Backpropagation
                 loss.backward()
+                # Update the network weights with the optimizer
                 optimizer.step()
 
         # Decay epsilon after each episode

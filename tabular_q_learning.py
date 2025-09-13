@@ -14,7 +14,7 @@ def train_q_learning(
     if episodes is None:
         episodes = config.EPISODES
     # --- Initialize Environment ---
-    env = gym.make("Taxi-v3")
+    env = gym.make("Taxi-v3",is_rainy = config.IS_RAINING,fickle_passenger=config.FICKLE_PASSENGER)
 
     # The Taxi environment has:
     # - 500 discrete states (position of taxi, passenger location, destination)
@@ -28,7 +28,7 @@ def train_q_learning(
     rewards = []
 
     for ep in trange(episodes, desc="Training Q-Learning"):
-        state, _ = env.reset()
+        state, info = env.reset()
         done = False
         total_reward = 0
 
@@ -40,7 +40,7 @@ def train_q_learning(
                 action = np.argmax(Q[state]) # exploit (best known action)
 
             # --- Take Action, Observe Next State & Reward ---
-            next_state, reward, terminated, truncated, _ = env.step(action)
+            next_state, reward, terminated, truncated, next_info = env.step(action)
             done = terminated or truncated
 
             # --- Q-learning Update Rule ---
@@ -52,7 +52,7 @@ def train_q_learning(
             # Move to next state
             state = next_state
             total_reward += reward
-
+            info = next_info
         # Decay epsilon (less exploration over time)
         epsilon = max(epsilon * epsilon_decay, epsilon_min)
         rewards.append(total_reward)
