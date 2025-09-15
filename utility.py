@@ -5,16 +5,42 @@ import matplotlib.pyplot as plt
 import os
 import config
 
+def get_action_policy_tabular(use_action_mask,info,n_actions,Q,s):
+    if use_action_mask:
+        valid_actions = np.nonzero(info["action_mask"] == 1)[0]
+        if len(valid_actions) > 0:
+            next_action = valid_actions[np.argmax(Q[s, valid_actions])]
+        else:
+            next_action = np.random.randint(0, n_actions) 
+    else:
+        next_action = np.argmax(Q[s])
+    return next_action
+
+def get_action_policy_dqn(use_action_mask,info,policy_net,sv):
+    if use_action_mask:
+        valid_actions = np.where(info["action_mask"] == 1)[0]
+        with torch.no_grad():
+            q_vals = policy_net(torch.FloatTensor(sv))
+            next_action = valid_actions[q_vals[valid_actions].argmax().item()]
+    else:
+        next_action = policy_net(torch.from_numpy(sv)).argmax().item()
+    return next_action
+
 def evaluate_tabular(Q, episodes=100):
     env = gym.make("Taxi-v3",is_rainy = config.IS_RAINING,fickle_passenger=config.FICKLE_PASSENGER)
     returns, successes, steps_list = [], 0, []
+    use_action_mask = config.USE_ACTION_MASK
+    seed = config.SEED
 
     for _ in range(episodes):
-        s, _ = env.reset()
+        if seed > 0:
+            s, info = env.reset(seed=seed + _)
+        else:
+            s, info = env.reset()
         done, total, steps = False, 0, 0
-        info = {}
+        n_actions = env.action_space.n
         while not done:
-            a = int(np.argmax(Q[s]))
+            a = get_action_policy_tabular(use_action_mask,info,n_actions,Q,s)
             s, r, terminated, truncated, info = env.step(a)
             done = terminated or truncated
             total += r
@@ -34,6 +60,8 @@ def evaluate_tabular(Q, episodes=100):
 def evaluate_dqn(policy_net, episodes=100):
     env = gym.make("Taxi-v3",is_rainy = config.IS_RAINING,fickle_passenger=config.FICKLE_PASSENGER)
     state_size = env.observation_space.n
+    use_action_mask = config.USE_ACTION_MASK
+    seed = config.SEED
 
     def one_hot(s):
         v = np.zeros(state_size, dtype=np.float32)
@@ -45,12 +73,14 @@ def evaluate_dqn(policy_net, episodes=100):
     policy_net.eval()
     with torch.no_grad():
         for _ in range(episodes):
-            s, _ = env.reset()
+            if seed > 0:
+                s, info = env.reset(seed=seed + _)
+            else:
+                s, info = env.reset()
             sv = one_hot(s)
             done, total, steps = False, 0, 0
-            info = {}
             while not done:
-                a = policy_net(torch.from_numpy(sv)).argmax().item()
+                a = get_action_policy_dqn(use_action_mask,info,policy_net,sv)
                 s, r, terminated, truncated, info = env.step(a)
                 done = terminated or truncated
                 sv = one_hot(s)
@@ -70,8 +100,13 @@ def evaluate_dqn(policy_net, episodes=100):
 
 def demo_tabular(Q, fps=2):
     env = gym.make("Taxi-v3", render_mode="rgb_array",is_rainy = config.IS_RAINING,fickle_passenger=config.FICKLE_PASSENGER)
-    s, _ = env.reset()
+    if config.SEED > 0:
+        s, info = env.reset(seed=config.SEED)
+    else:
+        s, info = env.reset()
     done = False
+    n_actions = env.action_space.n
+    use_action_mask = config.USE_ACTION_MASK
 
     fig, ax = plt.subplots()
     img = ax.imshow(env.render())
@@ -79,8 +114,8 @@ def demo_tabular(Q, fps=2):
 
     delay = 1.0 / fps
     while not done:
-        a = int(np.argmax(Q[s]))
-        s, r, terminated, truncated, _ = env.step(a)
+        a = get_action_policy_tabular(use_action_mask,info,n_actions,Q,s)
+        s, r, terminated, truncated, info = env.step(a)
         done = terminated or truncated
 
         frame = env.render()
@@ -90,16 +125,20 @@ def demo_tabular(Q, fps=2):
     env.close()
     plt.close(fig)
 
-def demo_dqn(model, fps=2):
+def demo_dqn(policy_net, fps=2):
     env = gym.make("Taxi-v3", render_mode="rgb_array",is_rainy = config.IS_RAINING,fickle_passenger=config.FICKLE_PASSENGER)
     state_size = env.observation_space.n
+    use_action_mask = config.USE_ACTION_MASK
 
     def one_hot(s):
         v = np.zeros(state_size, dtype=np.float32)
         v[s] = 1.0
         return v
 
-    s, _ = env.reset()
+    if config.SEED > 0:
+        s, info = env.reset(seed=config.SEED)
+    else:
+        s, info = env.reset()
     done = False
 
     fig, ax = plt.subplots()
@@ -107,12 +146,12 @@ def demo_dqn(model, fps=2):
     ax.axis("off")
 
     delay = 1.0 / fps
-    model.eval()
+    policy_net.eval()
     with torch.no_grad():
         while not done:
             sv = one_hot(s)
-            a = model(torch.from_numpy(sv)).argmax().item()
-            s, r, terminated, truncated, _ = env.step(a)
+            a = get_action_policy_dqn(use_action_mask,info,policy_net,sv)
+            s, r, terminated, truncated, info = env.step(a)
             done = terminated or truncated
 
             frame = env.render()

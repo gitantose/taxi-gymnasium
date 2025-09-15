@@ -1,6 +1,6 @@
 # main.py
 import argparse
-import os
+import os,random
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -9,7 +9,6 @@ from tabular_q_learning import train_q_learning
 from dqn import train_dqn
 import gymnasium as gym
 from utility import moving_avg, evaluate_dqn, evaluate_tabular, demo_dqn, demo_tabular
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

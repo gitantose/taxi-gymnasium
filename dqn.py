@@ -27,6 +27,8 @@ def train_dqn (
     epsilon= config.DQN_EPSILON_START, # initial exploration
     epsilon_min= config.DQN_EPSILON_MIN, # min exploration
     epsilon_decay= config.DQN_EPSILON_DECAY, # epsilon decay rate
+    use_action_mask: bool = config.USE_ACTION_MASK,
+    seed = config.SEED,
     lr= config.DQN_LR,  # learning rate for Adam optimizer
     batch_size= config.DQN_BATCH_SIZE,
     memory_size= config.DQN_MEMORY_SIZE
@@ -39,6 +41,10 @@ def train_dqn (
     # Discrete state space → we encode each state as a one-hot vector
     state_size = env.observation_space.n
     action_size = env.action_space.n
+    
+    if seed > 0:
+        np.random.seed(seed)
+        env.action_space.seed(seed)  
 
     # One-hot encode discrete state
     def preprocess_state(s):
@@ -56,35 +62,49 @@ def train_dqn (
     rewards = []
 
     for ep in trange(episodes, desc="Training DQN"):
-        state, info = env.reset()
+        if seed > 0:
+            state, info = env.reset(seed=config.SEED + ep)
+        else:
+            state, info = env.reset()
         state = preprocess_state(state)
         done = False
         total_reward = 0
 
         while not done:
+            valid_actions = np.where(info["action_mask"] == 1)[0]
             # --- Action Selection (ε-greedy) ---
             if np.random.rand() < epsilon:
-                action = env.action_space.sample() # explore
+                if use_action_mask:
+                    action = np.random.choice(valid_actions) # explore
+                else: 
+                    action = env.action_space.sample()
             else:
-                with torch.no_grad():
-                    action = policy_net(torch.FloatTensor(state)).argmax().item() # exploit best action
+                if use_action_mask:
+                    with torch.no_grad():
+                        q_vals = policy_net(torch.FloatTensor(state))
+                        action = valid_actions[q_vals[valid_actions].argmax().item()] # exploit best action
+                else:
+                    with torch.no_grad():
+                        action = policy_net(torch.FloatTensor(state)).argmax().item() # exploit best action
+
 
             # --- Environment Step ---
-            next_state, reward, terminated, truncated, _ = env.step(action)
+            next_state, reward, terminated, truncated, next_info = env.step(action)
             done = terminated or truncated
             next_state = preprocess_state(next_state)
 
             # Store transition in replay buffer
-            memory.append((state, action, reward, next_state, done))
+            memory.append((state, action, reward, next_state, done,next_info["action_mask"]))
             
             # Move to next state
             state = next_state
             total_reward += reward
+            info = next_info
 
             # Train on mini-batch
             if len(memory) >= batch_size:
                 batch = random.sample(memory, batch_size)
-                states, actions, rewards_, next_states, dones = zip(*batch)
+                states, actions, rewards_, next_states, dones, next_masks = zip(*batch)
 
                 states = torch.FloatTensor(np.array(states))
                 actions = torch.LongTensor(actions)
@@ -96,7 +116,21 @@ def train_dqn (
                 q_values = policy_net(states).gather(1, actions.unsqueeze(1)).squeeze()
 
                 # Target: r + γ * max_a’ Q(s’, a’), unless terminal
-                next_q_values = policy_net(next_states).max(1)[0]
+                if use_action_mask:
+                    next_q_values = []
+                    with torch.no_grad():
+                        q_next_all = policy_net(next_states)
+                        for i, mask in enumerate(next_masks):
+                            valid_a = np.where(mask == 1)[0]
+                            if len(valid_a) > 0:
+                                next_q_values.append(q_next_all[i][valid_a].max().item())
+                            else:
+                                next_q_values.append(0.0)
+                    next_q_values = torch.FloatTensor(next_q_values)
+                else:
+                    next_q_values = policy_net(next_states).max(1)[0]
+
+
                 target = rewards_ + gamma * next_q_values * (1 - dones)
 
                 # Loss = MSE(Q_predicted, Q_target)
