@@ -22,11 +22,15 @@ if __name__ == "__main__":
                         help="Plot the learning curves from saved files")
     parser.add_argument("--smooth", type=int, default=50,
                         help="Window mobile average (default: 50)")   
+    parser.add_argument("--dir", default=None,
+                        help="Directory of the policy to execute")   
     args = parser.parse_args()
 
     if args.agent == "tab":
-        # Load Q-table
-        Q = np.load("results/tabular/Q.npy")
+        if args.dir is not None:
+            Q = np.load(f"{args.dir}/tabular/Q.npy")
+        else:
+            Q = np.load("results_det/tabular/Q.npy")
         metrics = evaluate_tabular(Q, episodes=args.eval_episodes)
         print("\n=== Tabular Q-learning Evaluation ===")
         print(metrics)
@@ -41,7 +45,11 @@ if __name__ == "__main__":
         state_size = env.observation_space.n
         action_size = env.action_space.n
         model = QNetwork(state_size, action_size)
-        model.load_state_dict(torch.load("results/dqn/policy_net.pt"))
+        if args.dir is not None:
+            model.load_state_dict(torch.load(f"{args.dir}/dqn/policy_net.pt"))
+        else:
+            model.load_state_dict(torch.load(f"results/dqn/policy_net.pt"))
+        
         model.eval()
 
         metrics = evaluate_dqn(model, episodes=args.eval_episodes)
