@@ -8,10 +8,7 @@ import config
 def get_action_policy_tabular(use_action_mask,info,n_actions,Q,s):
     if use_action_mask:
         valid_actions = np.nonzero(info["action_mask"] == 1)[0]
-        if len(valid_actions) > 0:
-            next_action = valid_actions[np.argmax(Q[s, valid_actions])]
-        else:
-            next_action = np.random.randint(0, n_actions) 
+        next_action = valid_actions[np.argmax(Q[s, valid_actions])]
     else:
         next_action = np.argmax(Q[s])
     return next_action
@@ -19,11 +16,12 @@ def get_action_policy_tabular(use_action_mask,info,n_actions,Q,s):
 def get_action_policy_dqn(use_action_mask,info,policy_net,sv):
     if use_action_mask:
         valid_actions = np.where(info["action_mask"] == 1)[0]
+        q_vals = policy_net(torch.FloatTensor(sv))
         with torch.no_grad():
-            q_vals = policy_net(torch.FloatTensor(sv))
             next_action = valid_actions[q_vals[valid_actions].argmax().item()]
     else:
-        next_action = policy_net(torch.from_numpy(sv)).argmax().item()
+        with torch.no_grad():
+            next_action = q_vals.argmax().item()
     return next_action
 
 def evaluate_tabular(Q, episodes=100):

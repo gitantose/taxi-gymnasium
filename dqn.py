@@ -23,10 +23,10 @@ class QNetwork(nn.Module):
 
 def train_dqn (
     episodes= None,
-    gamma= config.DQN_GAMMA, # discount factor
-    epsilon= config.DQN_EPSILON_START, # initial exploration
-    epsilon_min= config.DQN_EPSILON_MIN, # min exploration
-    epsilon_decay= config.DQN_EPSILON_DECAY, # epsilon decay rate
+    gamma= config.DQN_GAMMA, 
+    epsilon= config.DQN_EPSILON_START, 
+    epsilon_min= config.DQN_EPSILON_MIN, 
+    epsilon_decay= config.DQN_EPSILON_DECAY, 
     use_action_mask: bool = config.USE_ACTION_MASK,
     seed = config.SEED,
     lr= config.DQN_LR,  # learning rate for Adam optimizer
@@ -38,7 +38,6 @@ def train_dqn (
         
     env = gym.make("Taxi-v3",is_rainy = config.IS_RAINING,fickle_passenger=config.FICKLE_PASSENGER)
 
-    # Discrete state space → we encode each state as a one-hot vector
     state_size = env.observation_space.n
     action_size = env.action_space.n
     
@@ -47,7 +46,7 @@ def train_dqn (
         env.action_space.seed(seed)  
 
     # One-hot encode discrete state
-    def preprocess_state(s):
+    def one_hot_encode(s):
         state_vec = np.zeros(state_size)
         state_vec[s] = 1.0
         return state_vec
@@ -57,8 +56,8 @@ def train_dqn (
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
     criterion = nn.MSELoss()
 
-    # Replay buffer for experience tuples (s, a, r, s’, done)
-    memory = deque(maxlen=memory_size)
+    # Replay buffer
+    reply_buffer = deque(maxlen=memory_size)
     rewards = []
 
     for ep in trange(episodes, desc="Training DQN"):
@@ -66,7 +65,7 @@ def train_dqn (
             state, info = env.reset(seed=config.SEED + ep)
         else:
             state, info = env.reset()
-        state = preprocess_state(state)
+        state_vector = one_hot_encode(state)
         done = False
         total_reward = 0
 
@@ -75,35 +74,33 @@ def train_dqn (
             # --- Action Selection (ε-greedy) ---
             if np.random.rand() < epsilon:
                 if use_action_mask:
-                    action = np.random.choice(valid_actions) # explore
+                    action = env.action_space.sample(info["action_mask"]) # explore
                 else: 
                     action = env.action_space.sample()
             else:
                 if use_action_mask:
+                    q_vals = policy_net(torch.FloatTensor(state_vector))
                     with torch.no_grad():
-                        q_vals = policy_net(torch.FloatTensor(state))
                         action = valid_actions[q_vals[valid_actions].argmax().item()] # exploit best action
                 else:
                     with torch.no_grad():
-                        action = policy_net(torch.FloatTensor(state)).argmax().item() # exploit best action
+                        action = q_vals.argmax().item() # exploit best action
 
-
-            # --- Environment Step ---
             next_state, reward, terminated, truncated, next_info = env.step(action)
             done = terminated or truncated
-            next_state = preprocess_state(next_state)
+            next_state_vector = one_hot_encode(next_state)
 
             # Store transition in replay buffer
-            memory.append((state, action, reward, next_state, done,next_info["action_mask"]))
+            reply_buffer.append((state_vector, action, reward, next_state_vector, done,next_info["action_mask"]))
             
             # Move to next state
-            state = next_state
+            state_vector = next_state_vector
             total_reward += reward
             info = next_info
 
             # Train on mini-batch
-            if len(memory) >= batch_size:
-                batch = random.sample(memory, batch_size)
+            if len(reply_buffer) >= batch_size:
+                batch = random.sample(reply_buffer, batch_size)
                 states, actions, rewards_, next_states, dones, next_masks = zip(*batch)
 
                 states = torch.FloatTensor(np.array(states))

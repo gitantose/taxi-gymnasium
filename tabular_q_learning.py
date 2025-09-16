@@ -7,20 +7,17 @@ def train_q_learning(
     episodes= None,
     alpha= config.ALPHA,   
     seed = config.SEED,
-    use_action_mask: bool = config.USE_ACTION_MASK,     # learning rate (step size for Q-value updates)
-    gamma= config.GAMMA,       # discount factor (importance of future rewards)
-    epsilon= config.EPSILON_START,      # exploration rate (ε-greedy policy)
-    epsilon_decay= config.EPSILON_DECAY, # Multiplicative decay for epsilon
-    epsilon_min= config.EPSILON_MIN # Lower bound for epsilon
+    use_action_mask: bool = config.USE_ACTION_MASK,     
+    gamma= config.GAMMA,   
+    epsilon= config.EPSILON_START,   
+    epsilon_decay= config.EPSILON_DECAY, 
+    epsilon_min= config.EPSILON_MIN 
 ):  
     if episodes is None:
         episodes = config.EPISODES
-    # --- Initialize Environment ---
+
     env = gym.make("Taxi-v3",is_rainy = config.IS_RAINING,fickle_passenger=config.FICKLE_PASSENGER)
 
-    # The Taxi environment has:
-    # - 500 discrete states (position of taxi, passenger location, destination)
-    # - 6 discrete actions (move in 4 directions, pick up, drop off)
     n_states = env.observation_space.n
     n_actions = env.action_space.n
 
@@ -28,7 +25,6 @@ def train_q_learning(
         np.random.seed(seed)  
         env.action_space.seed(seed)  
 
-    # Initialize Q-table with zeros
     Q = np.zeros((n_states, n_actions))
 
     rewards = []
@@ -46,17 +42,13 @@ def train_q_learning(
             # --- Action Selection (ε-greedy) ---
             if np.random.rand() < epsilon:
                 if use_action_mask:
-                    action = env.action_space.sample(info["action_mask"]) # explore
+                    action = env.action_space.sample(info["action_mask"]) 
                 else:
                     action = env.action_space.sample()
             else:
                 if use_action_mask:
-                    if len(valid_actions) > 0:
-                        action = valid_actions[np.argmax(Q[state, valid_actions])]
-                    else:
-                        action = env.action_space.sample() # exploit (best known action)
+                    action = valid_actions[np.argmax(Q[state, valid_actions])]
                 else:
-                    # Consider all actions
                     action = np.argmax(Q[state])
                 
             # --- Take Action, Observe Next State & Reward ---
@@ -66,7 +58,7 @@ def train_q_learning(
 
             if not (done or truncated):
                 if use_action_mask:
-                    # Only consider valid next actions for bootstrapping
+                    # Only consider valid next actions 
                     next_mask = info["action_mask"]
                     valid_next_actions = np.nonzero(next_mask == 1)[0]
                     if len(valid_next_actions) > 0:
@@ -83,7 +75,7 @@ def train_q_learning(
                 )
             # Move to next state
             state = next_state
-        # Decay epsilon (less exploration over time)
+
         epsilon = max(epsilon * epsilon_decay, epsilon_min)
         rewards.append(total_reward)
 
